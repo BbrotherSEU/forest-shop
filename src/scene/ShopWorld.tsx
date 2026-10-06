@@ -19,7 +19,7 @@ export function ShopWorld() {
         shadows
         dpr={[1, 1.5]}
         camera={{ position: [5.4, 3.55, 11.2], fov: 38, near: 0.1, far: 80 }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, alpha: false }}
       >
         <FollowCamera />
         {place === "outside" ? <Exterior /> : <Interior />}

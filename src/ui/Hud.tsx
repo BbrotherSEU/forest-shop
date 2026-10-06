@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react"
 import { cabinetCopy, formatMoney, supplies, suppliesIn, type SupplyId } from "../game/catalog.ts"
-import { useShop } from "../game/store.ts"
+import { addPurse, purseTotal } from "../game/money.ts"
+import { subscribeMusic, toggleMusic } from "../game/music.ts"
+import { avatarLabel, useShop } from "../game/store.ts"
+import { RegisterPanel } from "./Register.tsx"
 
 export function Hud() {
   const place = useShop((state) => state.place)
@@ -8,24 +12,41 @@ export function Hud() {
   const cabinet = useShop((state) => state.cabinet)
   const cart = useShop((state) => state.cart)
   const cartOpen = useShop((state) => state.cartOpen)
-  const receipt = useShop((state) => state.receipt)
+  const registerOpen = useShop((state) => state.registerOpen)
+  const clerkTalk = useShop((state) => state.clerkTalk)
+  const clerkLine = useShop((state) => state.clerkLine)
+  const avatar = useShop((state) => state.avatar)
+  const student = useShop((state) => state.student)
+  const wallet = useShop((state) => state.wallet)
+  const tender = useShop((state) => state.tender)
 
-  const total = cart.reduce((sum, id) => sum + supplies[id].priceJiao, 0)
+  const pocket = purseTotal(addPurse(wallet, tender))
 
   return (
     <div className="pointer-events-none absolute inset-0">
+      <button
+        type="button"
+        className="pointer-events-auto absolute left-4 top-5 rounded-3xl bg-white/95 px-4 py-2 text-left shadow"
+        onClick={() => useShop.getState().toggleAvatar()}
+      >
+        <span className="block text-xs font-bold text-[#8a6a4a]">
+          {student ? `${student.name} · ${student.room}` : "点击切换角色"}
+        </span>
+        <span className="block text-lg font-black">{avatarLabel(avatar)}</span>
+      </button>
+
       {place === "outside" ? (
-        <p className="absolute left-1/2 top-5 -translate-x-1/2 rounded-full bg-white/95 px-5 py-2 text-lg font-black shadow">
+        <p className="absolute left-1/2 top-24 -translate-x-1/2 rounded-full bg-white/95 px-5 py-2 text-lg font-black shadow">
           点一下木门，走进文具店
         </p>
-      ) : (
-        <p className="absolute left-1/2 top-5 -translate-x-1/2 rounded-full bg-white/95 px-5 py-2 text-center text-base font-bold shadow">
-          方向键走路，或点地面走过去。点柜子看里面的文具。
+      ) : cabinet ? null : (
+        <p className="absolute left-1/2 top-24 max-w-[min(70vw,28rem)] -translate-x-1/2 rounded-full bg-white/95 px-5 py-2 text-center text-base font-bold shadow">
+          点柜门看里面的文具，选好后到左边收银台付钱。
           {hint ? <span className="mt-1 block text-[#c45c4a]">{hint}</span> : null}
         </p>
       )}
 
-      {place === "inside" ? (
+      {place === "inside" && !registerOpen ? (
         <button
           type="button"
           className="pointer-events-auto absolute right-4 top-5 rounded-full bg-[#f08a7a] px-5 py-3 text-lg font-black text-white shadow"
@@ -35,17 +56,72 @@ export function Hud() {
         </button>
       ) : null}
 
-      {cartOpen && place === "inside" ? <CartPanel total={total} cart={cart} receipt={receipt} /> : null}
+      {place === "inside" && !registerOpen && !cabinet && !cartOpen ? (
+        <p className="absolute bottom-4 left-4 rounded-full bg-white/95 px-4 py-2 text-base font-black shadow">
+          口袋 {formatMoney(pocket)}
+        </p>
+      ) : null}
+
+      <MusicButton />
+      {clerkTalk && place === "inside" ? <ClerkTalk line={clerkLine} /> : null}
+      {cartOpen && place === "inside" ? <CartPanel cart={cart} /> : null}
+      {registerOpen && place === "inside" ? <RegisterPanel /> : null}
       {cabinet ? <CabinetPanel id={cabinet} /> : null}
       {fading ? <div className="absolute inset-0 bg-[#fff6ea]" /> : null}
     </div>
   )
 }
 
-function CartPanel({ total, cart, receipt }: { total: number; cart: SupplyId[]; receipt: boolean }) {
+function ClerkTalk({ line }: { line: string }) {
+  return (
+    <section className="pointer-events-auto absolute left-4 top-44 w-72 rounded-3xl bg-white/95 p-4 shadow-xl">
+      <p className="text-xs font-bold text-[#8a6a4a]">收银员</p>
+      <p className="mt-1 text-base font-black leading-snug">{line}</p>
+      <div className="mt-3 grid gap-2">
+        <button
+          type="button"
+          className="rounded-2xl bg-[#f4efe6] px-3 py-2 text-left text-sm font-black"
+          onClick={() => useShop.getState().clerkIntroduce()}
+        >
+          请给我介绍一下
+        </button>
+        <button
+          type="button"
+          className="rounded-2xl bg-[#f4efe6] px-3 py-2 text-left text-sm font-black"
+          onClick={() => useShop.getState().clerkChitchat()}
+        >
+          只是想闲聊一下
+        </button>
+        <button
+          type="button"
+          className="rounded-2xl bg-[#f08a7a] px-3 py-2 text-left text-sm font-black text-white"
+          onClick={() => useShop.getState().closeClerkTalk()}
+        >
+          再见
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function MusicButton() {
+  const [playing, setPlaying] = useState(false)
+  useEffect(() => {
+    return subscribeMusic(setPlaying)
+  }, [])
+  return (
+    <button
+      type="button"
+      className="pointer-events-auto absolute left-4 top-28 rounded-full bg-white/95 px-4 py-2 text-base font-black shadow"
+      onClick={() => toggleMusic()}
+    >
+      {playing ? "音乐开" : "音乐关"}
+    </button>
+  )
+}
+
+function CartPanel({ cart }: { cart: SupplyId[] }) {
   const removeAt = useShop((state) => state.removeAt)
-  const checkout = useShop((state) => state.checkout)
-  const dismissReceipt = useShop((state) => state.dismissReceipt)
 
   return (
     <section className="pointer-events-auto absolute right-4 top-20 w-72 rounded-3xl bg-white/95 p-4 shadow-xl">
@@ -65,16 +141,13 @@ function CartPanel({ total, cart, receipt }: { total: number; cart: SupplyId[]; 
           ))}
         </ul>
       )}
-      <p className="mt-3 text-lg font-black">一共 {formatMoney(total)}</p>
-      {receipt ? (
-        <button type="button" className="mt-3 w-full rounded-2xl bg-[#3d7ec4] py-3 font-black text-white" onClick={dismissReceipt}>
-          买好了
-        </button>
-      ) : (
-        <button type="button" className="mt-3 w-full rounded-2xl bg-[#f08a7a] py-3 font-black text-white" onClick={checkout}>
-          结账
-        </button>
-      )}
+      <button
+        type="button"
+        className="mt-3 w-full rounded-2xl bg-[#f08a7a] py-3 font-black text-white"
+        onClick={() => useShop.getState().summonClerk()}
+      >
+        去收银台付钱
+      </button>
     </section>
   )
 }
@@ -86,31 +159,22 @@ function CabinetPanel({ id }: { id: "blue" | "wood" }) {
   const items = suppliesIn(id)
 
   return (
-    <section className="pointer-events-auto absolute bottom-4 left-1/2 w-[min(92vw,40rem)] -translate-x-1/2 rounded-[28px] bg-white/96 p-5 shadow-2xl">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-black">{copy.title}</h2>
-          <p className="text-sm font-bold text-[#8a6a4a]">{copy.hint}</p>
-        </div>
-        <button type="button" className="rounded-full bg-[#f6efe2] px-4 py-2 font-black" onClick={closeCabinet}>
-          关上
-        </button>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <section className={`pointer-events-auto absolute bottom-6 w-52 rounded-3xl bg-white/95 p-3 shadow-xl ${id === "blue" ? "left-4" : "right-4"}`}>
+      <h2 className="text-lg font-black">{copy.title}</h2>
+      <p className="text-xs font-bold text-[#8a6a4a]">点柜子里的文具</p>
+      <ul className="mt-2 space-y-1">
         {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="rounded-2xl bg-[#fffaf3] p-3 text-left shadow"
-            onClick={() => add(item.id)}
-          >
-            <span className="block h-8 w-8 rounded-full" style={{ background: item.swatch }} />
-            <span className="mt-2 block text-lg font-black">{item.name}</span>
-            <span className="num text-base font-extrabold text-[#c45c4a]">{formatMoney(item.priceJiao)}</span>
-            <span className="mt-1 block text-sm font-bold text-[#3d7ec4]">放入购物车</span>
-          </button>
+          <li key={item.id}>
+            <button type="button" className="flex w-full items-center justify-between text-left text-sm font-black" onClick={() => add(item.id)}>
+              <span>{item.name}</span>
+              <span className="num text-[#c45c4a]">{formatMoney(item.priceJiao)}</span>
+            </button>
+          </li>
         ))}
-      </div>
+      </ul>
+      <button type="button" className="mt-3 w-full rounded-full bg-[#f6efe2] py-2 font-black" onClick={closeCabinet}>
+        关上柜门
+      </button>
     </section>
   )
 }

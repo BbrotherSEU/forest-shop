@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react"
 import { useFrame } from "@react-three/fiber"
 import type { Group } from "three"
-import { canStep, control, floorHeight } from "../game/control.ts"
-import { useShop } from "../game/store.ts"
-import { Toon } from "./Toon.tsx"
+import { cabinetStand, canStep, control, floorHeight, hitsObstacle, nearestFree } from "../game/control.ts"
+import { avatarLabel, useShop } from "../game/store.ts"
+import { Kirby, Raccoon, RedPanda } from "./animals.tsx"
+import { NameTag } from "./label.tsx"
 
 const keys = new Set<string>()
 
@@ -11,6 +12,10 @@ export function Player() {
   const root = useRef<Group>(null)
   const body = useRef<Group>(null)
   const place = useShop((state) => state.place)
+  const avatar = useShop((state) => state.avatar)
+  const student = useShop((state) => state.student)
+  const cabinet = useShop((state) => state.cabinet)
+  const name = student?.name || avatarLabel(avatar)
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
@@ -30,6 +35,7 @@ export function Player() {
       window.removeEventListener("keydown", down)
       window.removeEventListener("keyup", up)
       keys.clear()
+      control.moving = false
     }
   }, [])
 
@@ -38,6 +44,26 @@ export function Player() {
     const group = root.current
     const bob = body.current
     if (!group || !bob) return
+
+    if (cabinet) {
+      const spot = cabinetStand[cabinet]
+      control.x = spot.x
+      control.z = spot.z
+      control.yaw = spot.yaw
+      control.target = null
+      control.moving = false
+      group.position.set(spot.x, floorHeight(spot.x, spot.z), spot.z)
+      group.rotation.y = spot.yaw
+      bob.position.y = 0
+      return
+    }
+
+    if (hitsObstacle(control.x, control.z)) {
+      const free = nearestFree(control.x, control.z)
+      control.x = free.x
+      control.z = free.z
+      control.target = null
+    }
 
     let dx = 0
     let dz = 0
@@ -80,52 +106,22 @@ export function Player() {
     }
 
     const moving = dx !== 0 || dz !== 0
+    control.moving = moving
     group.position.set(control.x, floorHeight(control.x, control.z), control.z)
     group.rotation.y = control.yaw
-    const hop = moving ? Math.abs(Math.sin(state.clock.elapsedTime * 11)) * 0.08 : Math.sin(state.clock.elapsedTime * 2) * 0.02
-    bob.position.y = hop
+    bob.position.y = avatar === "pink" || !moving ? 0 : Math.abs(Math.sin(state.clock.elapsedTime * 11)) * 0.05
   })
 
   return (
-    <group ref={root} position={[0, 0, 4.6]} rotation={[0, Math.PI, 0]}>
+    <group ref={root} position={[0, 0, 4.55]} rotation={[0, Math.PI, 0]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-        <circleGeometry args={[0.38, 20]} />
+        <circleGeometry args={[0.42, 24]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.16} />
       </mesh>
-      <group ref={body}>
-        <mesh position={[-0.12, 0.28, 0]} castShadow>
-          <capsuleGeometry args={[0.08, 0.18, 4, 8]} />
-          <Toon color="#3d4c66" />
-        </mesh>
-        <mesh position={[0.12, 0.28, 0]} castShadow>
-          <capsuleGeometry args={[0.08, 0.18, 4, 8]} />
-          <Toon color="#3d4c66" />
-        </mesh>
-        <mesh position={[0, 0.78, 0]} castShadow>
-          <capsuleGeometry args={[0.24, 0.34, 6, 10]} />
-          <Toon color="#7ec8ff" />
-        </mesh>
-        <mesh position={[0, 0.86, -0.16]} castShadow>
-          <boxGeometry args={[0.28, 0.3, 0.1]} />
-          <Toon color="#f2c14e" />
-        </mesh>
-        <mesh position={[0, 1.28, 0]} castShadow>
-          <sphereGeometry args={[0.22, 20, 20]} />
-          <Toon color="#ffd7c2" />
-        </mesh>
-        <mesh position={[0, 1.4, -0.02]} scale={[1.05, 0.55, 1]}>
-          <sphereGeometry args={[0.22, 16, 16]} />
-          <Toon color="#3a2a22" />
-        </mesh>
-        <mesh position={[-0.07, 1.3, 0.18]}>
-          <sphereGeometry args={[0.028, 10, 10]} />
-          <Toon color="#24312c" />
-        </mesh>
-        <mesh position={[0.07, 1.3, 0.18]}>
-          <sphereGeometry args={[0.028, 10, 10]} />
-          <Toon color="#24312c" />
-        </mesh>
+      <group ref={body} scale={1.12}>
+        {avatar === "panda" ? <RedPanda animate satchel /> : avatar === "raccoon" ? <Raccoon animate satchel /> : <Kirby animate />}
       </group>
+      <NameTag text={name} position={[0, avatar === "pink" ? 2.05 : 2.28, 0]} />
     </group>
   )
 }
@@ -147,8 +143,8 @@ export function WalkMarker() {
   return (
     <group ref={ref}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.18, 0.28, 20]} />
-        <meshBasicMaterial color="#fff4ea" transparent opacity={0.9} />
+        <ringGeometry args={[0.18, 0.28, 24]} />
+        <meshBasicMaterial color="#fff4ea" />
       </mesh>
     </group>
   )
