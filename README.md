@@ -85,13 +85,9 @@ Record fields include:
 
 ### Teacher auth
 
-Defined in `src/game/teacherAuth.ts`:
+Defined in `src/game/teacherAuth.ts` (username is `admin`; password stays in that file, not in README).
 
-| Field | Value |
-| --- | --- |
-| Username | `admin` |
-| Password | `grove-r3m9-4bds` |
-| Session | `sessionStorage` key `forest-shop-teacher` |
+Session key: `sessionStorage` → `forest-shop-teacher`
 
 Teacher UI tabs:
 
@@ -103,7 +99,7 @@ Teacher UI tabs:
 - `data/purchases.json` (gitignored)
 - `node_modules/`
 - `dist/`
-- secrets beyond the classroom teacher password already in source
+- teacher password in README
 
 ### Conventions for agents
 
@@ -139,10 +135,7 @@ Teacher UI tabs:
 
 地址：`http://localhost:5173/teacher`
 
-| 项目 | 内容 |
-| --- | --- |
-| 用户名 | `admin` |
-| 密码 | `grove-r3m9-4bds` |
+用户名是 `admin`。密码写在 `src/game/teacherAuth.ts`，这里不公开。
 
 老师页有「总览看板」和「学生统计」。记录保存在服务器文件 `data/purchases.json`，不同浏览器也能看到。
 
@@ -172,10 +165,7 @@ Money unit: 1 yuan = 10 jiao. Cart max 8 items, max 2 of the same item.
 
 URL: `http://localhost:5173/teacher`
 
-| Field | Value |
-| --- | --- |
-| Username | `admin` |
-| Password | `grove-r3m9-4bds` |
+Username is `admin`. Password lives in `src/game/teacherAuth.ts` and is not listed here.
 
 Dashboard + per-student stats. Records live in `data/purchases.json` on the shop server.
 
