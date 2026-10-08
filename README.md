@@ -1,17 +1,133 @@
-# 林间文具店
+# 林间文具店 / Forest Stationery Shop
 
-[English](#forest-stationery-shop)
+Browser 3D stationery shop for grade-2 money practice (yuan / jiao).
+Students shop and check out. Teachers review attempts on a separate page.
 
-在浏览器里逛一家小文具店。先看到木屋外观，点门进去，再用方向键或鼠标在店里走动。镜头只跟着人平移，房间本身不会转向。
+- Student app: `/`
+- Teacher app: `/teacher`
+- Default local URL: `http://localhost:5173/`
 
-## 怎么玩
+[中文说明](#中文) · [English](#english) · [AI context](#ai-context)
 
-1. 打开页面后，点木门走进店里。
-2. 用方向键或 `W` `A` `S` `D` 走路，也可以点地面，人会走过去。
-3. 点蓝色柜子或木柜子，查看里面的文具，再放进购物车。桌上的水彩笔和胶水可以直接点。
-4. 右上角打开购物车，确认金额后结账。店里的门可以走回外面。
+---
 
-价格用元和角，1 元 = 10 角。购物车最多 8 件，同一种最多 2 件。
+## AI context
+
+Use this section first when editing or extending the project.
+
+### Goal
+
+Teach `1 yuan = 10 jiao` through a shop checkout:
+
+1. Student picks school supplies.
+2. Student enters the total in yuan/jiao.
+3. Student pays with virtual cash.
+4. Student enters the change.
+5. Teacher sees purchase history and mistake counts.
+
+### Runtime
+
+| Item | Value |
+| --- | --- |
+| Package manager | npm |
+| Dev command | `npm run dev` |
+| Port | `5173` (strict) |
+| Host | `true` (LAN reachable) |
+| Build | `npm run build` |
+| Preview | `npm run preview` |
+| Node | 20+ |
+
+### Stack
+
+Vite + React 19 + TypeScript + React Three Fiber + Three.js + Zustand + Tailwind CSS 4.
+
+No React Router. Routing is pathname-based in `src/App.tsx`:
+
+- `/teacher` → teacher UI
+- otherwise student UI / login
+
+### Important paths
+
+| Path | Role |
+| --- | --- |
+| `src/App.tsx` | Student vs teacher gate |
+| `src/ui/Login.tsx` | Student name + class + avatar |
+| `src/ui/Register.tsx` | Checkout panel: sum → pay → change |
+| `src/ui/Teacher.tsx` | Teacher dashboard + per-student stats |
+| `src/ui/Hud.tsx` | In-game overlays |
+| `src/game/store.ts` | Zustand shop state, `payCash` |
+| `src/game/money.ts` | Bills, purse, change |
+| `src/game/catalog.ts` | Supplies and prices (jiao) |
+| `src/game/records.ts` | Purchase records + teacher aggregates |
+| `src/game/session.ts` | Persist student/avatar in localStorage |
+| `src/game/teacherAuth.ts` | Teacher login credentials |
+| `src/scene/*` | 3D exterior / interior / characters |
+| `plugins/purchaseApi.ts` | Vite middleware for `/api/purchases` |
+| `data/purchases.json` | Runtime purchase data (**do not commit**) |
+| `data/.gitkeep` | Keep empty data folder in git |
+
+### Purchase recording
+
+On successful checkout, `payCash` in `src/game/store.ts` calls `savePurchase`:
+
+1. Cache to `localStorage` key `forest-shop-records`
+2. `POST /api/purchases`
+3. Server stores `data/purchases.json`
+
+Teacher page loads with `GET /api/purchases`.
+
+Record fields include:
+
+- student name / room
+- items, total, paid, change
+- `sumAttempts`, `sumWrong`, `changeAttempts`, `changeWrong`
+- `sumCorrect`, `changeCorrect`
+
+### Teacher auth
+
+Defined in `src/game/teacherAuth.ts`:
+
+| Field | Value |
+| --- | --- |
+| Username | `admin` |
+| Password | `grove-r3m9-4bds` |
+| Session | `sessionStorage` key `forest-shop-teacher` |
+
+Teacher UI tabs:
+
+1. Dashboard: class totals, room summary, students needing practice, recent purchases
+2. Students: filter by room, ranking table, per-student detail
+
+### Do not commit
+
+- `data/purchases.json` (gitignored)
+- `node_modules/`
+- `dist/`
+- secrets beyond the classroom teacher password already in source
+
+### Conventions for agents
+
+- Prefer Chinese UI copy for classroom pages.
+- Money unit is integer **jiao**.
+- Keep camera fixed orientation indoors; follow player by translation only.
+- Do not add React Router unless required.
+- Keep purchase API file-based for local classroom use.
+- After checkout changes, verify both `/` and `/teacher`.
+
+---
+
+## 中文
+
+### 怎么玩
+
+1. 填写名字、班级、角色后进店。
+2. 点木门进去。
+3. 方向键 / `WASD` 走路，或点地面走过去。
+4. 点柜子看文具并加入购物车；桌上水彩笔、胶水可直接点。
+5. 去收银台：先算总价，再付钱，再算找零。
+6. 店内门可走回外面。
+
+价格：1 元 = 10 角。购物车最多 8 件，同一种最多 2 件。
 
 | 位置 | 文具 |
 | --- | --- |
@@ -19,65 +135,53 @@
 | 木柜子 | 练习本 1元5角、文件夹 1元2角、便签 6角 |
 | 桌子 | 水彩笔 3元、胶水 1元2角 |
 
-## 本地运行
+### 老师查看
 
-需要 Node.js 20 或更新版本。
+地址：`http://localhost:5173/teacher`
+
+| 项目 | 内容 |
+| --- | --- |
+| 用户名 | `admin` |
+| 密码 | `grove-r3m9-4bds` |
+
+老师页有「总览看板」和「学生统计」。记录保存在服务器文件 `data/purchases.json`，不同浏览器也能看到。
+
+### 本地运行
 
 ```bash
 npm install
 npm run dev
 ```
-
-浏览器打开终端里显示的本地地址。常用命令：
-
-```bash
-npm run build
-npm run preview
-```
-
-## 技术
-
-Vite、React、TypeScript、React Three Fiber、Three.js、Zustand、Tailwind CSS。画面用分阶卡通着色，店内镜头是固定斜上方的跟随镜头。
 
 ---
 
-# Forest Stationery Shop
+## English
 
-[中文](#林间文具店)
+### How to play
 
-A small stationery shop you can walk through in the browser. The first view is the wooden storefront. Click the door to go inside, then move with the arrow keys or the mouse. The camera follows the character by sliding only, so the room never turns.
+1. Enter name, class, and avatar.
+2. Click the wooden door to enter.
+3. Move with arrows / `WASD`, or click the floor.
+4. Open cabinets to shop; table items can be clicked directly.
+5. At checkout: enter total, pay, then enter change.
+6. Use the interior door to leave.
 
-## How to play
+Money unit: 1 yuan = 10 jiao. Cart max 8 items, max 2 of the same item.
 
-1. Click the wooden door to enter.
-2. Walk with the arrow keys or `W` `A` `S` `D`. You can also click the floor and the character will walk there.
-3. Click the blue cabinet or the wooden cabinet to see the supplies inside and add them to the cart. The marker and glue on the table can be clicked directly.
-4. Open the cart at the top right, check the total, and check out. The door inside the shop leads back outside.
+### Teacher view
 
-Prices use yuan and jiao, and 1 yuan = 10 jiao. The cart holds up to 8 items, with at most 2 of the same item.
+URL: `http://localhost:5173/teacher`
 
-| Place | Supplies |
+| Field | Value |
 | --- | --- |
-| Blue cabinet | pencil 5 jiao, eraser 8 jiao, ruler 1 yuan, pencil case 2 yuan 5 jiao |
-| Wooden cabinet | notebook 1 yuan 5 jiao, folder 1 yuan 2 jiao, sticky notes 6 jiao |
-| Table | marker 3 yuan, glue 1 yuan 2 jiao |
+| Username | `admin` |
+| Password | `grove-r3m9-4bds` |
 
-## Run locally
+Dashboard + per-student stats. Records live in `data/purchases.json` on the shop server.
 
-Node.js 20 or newer is required.
+### Run locally
 
 ```bash
 npm install
 npm run dev
 ```
-
-Open the local address printed in the terminal. Other commands:
-
-```bash
-npm run build
-npm run preview
-```
-
-## Stack
-
-Vite, React, TypeScript, React Three Fiber, Three.js, Zustand, and Tailwind CSS. The scene uses toon shading. Indoors, the camera stays at a fixed high angle and only follows the character.

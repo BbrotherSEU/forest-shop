@@ -24,6 +24,8 @@ export function RegisterPanel() {
   const [jiao, setJiao] = useState("")
   const [changeYuan, setChangeYuan] = useState("")
   const [changeJiao, setChangeJiao] = useState("")
+  const [sumWrong, setSumWrong] = useState(0)
+  const [changeWrong, setChangeWrong] = useState(0)
   const [note, setNote] = useState<string | null>(null)
 
   useEffect(() => {
@@ -32,6 +34,8 @@ export function RegisterPanel() {
     setJiao("")
     setChangeYuan("")
     setChangeJiao("")
+    setSumWrong(0)
+    setChangeWrong(0)
     setNote(null)
   }, [total])
 
@@ -41,6 +45,7 @@ export function RegisterPanel() {
       setStep("pay")
       return
     }
+    setSumWrong((count) => count + 1)
     setNote("再算一算。元和角要分开写，角只能是 0 到 9。")
   }
 
@@ -57,9 +62,15 @@ export function RegisterPanel() {
     const answer = readPair(changeYuan, changeJiao)
     if (answer === paid - total) {
       setNote(null)
-      payCash()
+      payCash({
+        sumAttempts: sumWrong + 1,
+        sumWrong,
+        changeAttempts: changeWrong + 1,
+        changeWrong,
+      })
       return
     }
+    setChangeWrong((count) => count + 1)
     setNote("找零不对，再算一算。不用找的话就填 0 元 0 角。")
   }
 
@@ -198,7 +209,7 @@ function Receipt({
   sale,
   onClose,
 }: {
-  sale: { total: number; paid: number; change: ReturnType<typeof giveChange> }
+  sale: { total: number; paid: number; change: ReturnType<typeof giveChange>; sumAttempts: number; changeAttempts: number }
   onClose: () => void
 }) {
   const change = yuanJiao(purseTotal(sale.change))
@@ -212,6 +223,9 @@ function Receipt({
       <p className="text-lg font-black">你付了 {formatMoney(sale.paid)}</p>
       <p className="mt-2 text-lg font-black text-[#3d7ec4]">
         找零 {change.yuan}元{change.jiao}角
+      </p>
+      <p className="mt-2 text-sm font-bold text-[#8a6a4a]">
+        总价第 {sale.sumAttempts} 次算对，找零第 {sale.changeAttempts} 次算对。已经记下来给老师看。
       </p>
       {purseTotal(sale.change) > 0 ? <p className="text-sm font-bold text-[#8a6a4a]">{describePurse(sale.change)}</p> : null}
       <button type="button" className="mt-4 w-full rounded-2xl bg-[#f08a7a] py-3 font-black text-white" onClick={onClose}>

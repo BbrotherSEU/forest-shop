@@ -2,9 +2,11 @@ import { create } from "zustand"
 import { cabinetCopy, supplies, type CabinetId, type SupplyId } from "./catalog.ts"
 import { control, counterSpot } from "./control.ts"
 import { addPurse, emptyPurse, giveChange, purseTotal, startingWallet, type BillId, type Purse } from "./money.ts"
+import { savePurchase, type CheckoutScore } from "./records.ts"
+import { loadAvatar, loadStudent, saveAvatar, saveStudent, type Avatar, type Student } from "./session.ts"
 
 export type Place = "outside" | "inside"
-export type Avatar = "panda" | "raccoon" | "pink"
+export type { Avatar, Student }
 export type ClerkSpot = "roam" | "coming" | "counter"
 
 const avatarOrder: Avatar[] = ["panda", "raccoon", "pink"]
@@ -19,11 +21,8 @@ export interface Sale {
   total: number
   paid: number
   change: Purse
-}
-
-export interface Student {
-  name: string
-  room: string
+  sumAttempts: number
+  changeAttempts: number
 }
 
 interface ShopState {
@@ -61,7 +60,7 @@ interface ShopState {
   closeRegister: () => void
   layBill: (id: BillId) => void
   liftBill: (id: BillId) => void
-  payCash: () => void
+  payCash: (score: CheckoutScore) => void
   toggleAvatar: () => void
 }
 
@@ -90,8 +89,8 @@ export const useShop = create<ShopState>((set, get) => ({
   cartOpen: false,
   receipt: false,
   hint: null,
-  avatar: "pink",
-  student: null,
+  avatar: loadAvatar(),
+  student: loadStudent(),
   wallet: startingWallet(),
   tender: emptyPurse(),
   registerOpen: false,
@@ -100,7 +99,12 @@ export const useShop = create<ShopState>((set, get) => ({
   clerkLine: "你好呀，想聊点什么？",
   sale: null,
 
-  signIn: (name, room, avatar) => set({ student: { name, room }, avatar }),
+  signIn: (name, room, avatar) => {
+    const student = { name, room }
+    saveStudent(student)
+    saveAvatar(avatar)
+    set({ student, avatar })
+  },
 
   enter: () => {
     window.clearTimeout(fadeTimer)
@@ -267,7 +271,7 @@ export const useShop = create<ShopState>((set, get) => ({
     })
   },
 
-  payCash: () => {
+  payCash: (score) => {
     const state = get()
     const total = cartTotal(state.cart)
     const paid = purseTotal(state.tender)
@@ -280,6 +284,23 @@ export const useShop = create<ShopState>((set, get) => ({
       return
     }
     const change = giveChange(paid - total)
+    const student = state.student ?? loadStudent()
+    const record = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      at: Date.now(),
+      studentName: student?.name || "未填写名字",
+      room: student?.room || "未填写班级",
+      items: state.cart.map((id) => ({ name: supplies[id].name, priceJiao: supplies[id].priceJiao })),
+      totalJiao: total,
+      paidJiao: paid,
+      changeJiao: paid - total,
+      sumAttempts: score.sumAttempts,
+      sumWrong: score.sumWrong,
+      changeAttempts: score.changeAttempts,
+      changeWrong: score.changeWrong,
+      sumCorrect: true,
+      changeCorrect: true,
+    }
     set({
       wallet: addPurse(state.wallet, change),
       tender: emptyPurse(),
@@ -288,15 +309,20 @@ export const useShop = create<ShopState>((set, get) => ({
       registerOpen: true,
       cartOpen: false,
       cabinet: null,
-      sale: { total, paid, change },
-      hint: null,
+      sale: { total, paid, change, sumAttempts: score.sumAttempts, changeAttempts: score.changeAttempts },
+      hint: "正在记给老师…",
+    })
+    void savePurchase(record).then((saved) => {
+      set({ hint: saved ? "这次购买已经记给老师了" : "买好了，但服务器没记上，请刷新老师页或再试一次" })
     })
   },
 
   toggleAvatar: () =>
     set((state) => {
       const index = avatarOrder.indexOf(state.avatar)
-      return { avatar: avatarOrder[(index + 1) % avatarOrder.length] }
+      const avatar = avatarOrder[(index + 1) % avatarOrder.length]
+      saveAvatar(avatar)
+      return { avatar }
     }),
 }))
 
